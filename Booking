@@ -1,0 +1,78 @@
+package controller;
+
+import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import service.TourService;
+import model.Booking;
+import model.Customer;
+import model.Tour;
+
+import java.io.IOException;
+import java.text.SimpleDateFormat;
+
+// Đường dẫn truy cập: /booking
+@WebServlet(name = "BookingServlet", urlPatterns = {"/booking"})
+public class BookingServlet extends HttpServlet {
+    
+    private TourService tourService = new TourService();
+
+    // GET: Hiển thị form đặt tour
+    @Override
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        String idStr = req.getParameter("id");
+        if (idStr != null) {
+            Long id = Long.parseLong(idStr);
+            req.setAttribute("tour", tourService.getTour(id));
+            req.getRequestDispatcher("bookingTour.jsp").forward(req, resp);
+        } else {
+            resp.sendRedirect("list-tours");
+        }
+    }
+
+    // POST: Xử lý khi nhấn nút "Gởi"
+    @Override
+    protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        try {
+            req.setCharacterEncoding("UTF-8");
+            
+            // 1. Lấy dữ liệu
+            Long tourId = Long.parseLong(req.getParameter("tourId"));
+            String name = req.getParameter("name");
+            String address = req.getParameter("address");
+            String email = req.getParameter("email");
+            String phone = req.getParameter("phone");
+            String dateStr = req.getParameter("departureDate");
+            int noAdults = Integer.parseInt(req.getParameter("noAdults"));
+            int noChildren = 0;
+            try { noChildren = Integer.parseInt(req.getParameter("noChildren")); } catch (Exception e) {}
+
+            // 2. Tạo đối tượng
+            Customer cust = new Customer();
+            cust.setName(name); cust.setAddress(address); cust.setEmail(email); cust.setPhone(phone);
+
+            Booking booking = new Booking();
+            booking.setCustomer(cust);
+            booking.setTour(tourService.getTour(tourId));
+            booking.setNoAdults(noAdults);
+            booking.setNoChildren(noChildren);
+            
+            SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy");
+            booking.setDepartureDate(sdf.parse(dateStr));
+
+            // 3. Lưu vào Service
+            tourService.saveCustomer(cust);
+            tourService.saveBooking(booking);
+
+            // 4. Chuyển sang trang xác nhận
+            req.setAttribute("booking", booking);
+            req.getRequestDispatcher("confirm.jsp").forward(req, resp);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            resp.getWriter().write("Lỗi dữ liệu: " + e.getMessage());
+        }
+    }
+}
